@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Library Book Registration</title>
+    <style>
+        .container {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .borrow-form {
+            flex: 1;
+            margin-right: 20px;
+        }
+        .reading-history {
+            flex: 1;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        .book-section {
+            margin-bottom: 20px;
+        }
+        .book-item {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: white;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        .currently-reading {
+            border-left: 4px solid #4CAF50;
+        }
+        .completed {
+            border-left: 4px solid #2196F3;
+        }
+        select, button {
+            margin: 10px 0;
+            padding: 8px;
+            width: 200px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .return-btn {
+            background-color: #2196F3;
+            margin-left: 10px;
+            padding: 5px 10px;
+            width: auto;
+        }
+        
+        /* Add new table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background-color: white;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .book-table {
+            margin-bottom: 20px;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        
+        .return-btn {
+            margin: 0;
+        }
+        
+        .no-books {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+    <script>
+        function updateStudentHistory() {
+            const studentId = document.getElementById('student_id').value;
+            if (!studentId) return;
+
+            fetch(`/get_student_history/${studentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const currentList = document.getElementById('current-books');
+                    const historyList = document.getElementById('completed-books');
+                    
+                    // Get selected student's full name and nickname
+                    const studentSelect = document.getElementById('student_id');
+                    const studentOption = studentSelect.options[studentSelect.selectedIndex];
+                    const studentFullName = studentOption.text;
+                    
+                    // Update heading with full student name
+                    document.getElementById('student-name').textContent = studentFullName;
+                    
+                    // Display currently borrowed books
+                    if (data.borrowed.length > 0) {
+                        currentList.innerHTML = `
+                            <table class="book-table">
+                                <thead>
+                                    <tr>
+                                        <th>Book Title</th>
+                                        <th>Borrowed Date</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.borrowed.map(book => `
+                                        <tr>
+                                            <td>${book[1]}</td>
+                                            <td>${new Date(book[2]).toLocaleDateString()}</td>
+                                            <td>
+                                                <button class="return-btn" onclick="returnBook(${studentId}, ${book[0]})">
+                                                    Return Book
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>`;
+                    } else {
+                        currentList.innerHTML = '<div class="no-books">No currently borrowed books</div>';
+                    }
+                    
+                    // Display returned books
+                    if (data.returned.length > 0) {
+                        historyList.innerHTML = `
+                            <table class="book-table">
+                                <thead>
+                                    <tr>
+                                        <th>Book Title</th>
+                                        <th>Borrowed Date</th>
+                                        <th>Returned Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.returned.map(book => `
+                                        <tr>
+                                            <td>${book[1]}</td>
+                                            <td>${new Date(book[2]).toLocaleDateString()}</td>
+                                            <td>${new Date(book[3]).toLocaleDateString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>`;
+                    } else {
+                        historyList.innerHTML = '<div class="no-books">No reading history</div>';
+                    }
+                });
+        }
+
+        function returnBook(studentId, bookId) {
+            fetch('/return_book', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `student_id=${studentId}&book_id=${bookId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateStudentHistory();
+                    location.reload(); // Refresh to update available books list
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <h1>Book Borrowing System</h1>
+    
+    <div class="container">
+        <div class="borrow-form">
+            <form action="{{ url_for('borrow_book') }}" method="post">
+                <div>
+                    <label for="student_id">Select Student:</label>
+                    <select name="student_id" id="student_id" required onchange="updateStudentHistory()">
+                        <option value="">Choose a student...</option>
+                        {% for student in students %}
+                        <option value="{{ student[0] }}">{{ student[1] }} ({{ student[2] }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="book_id">Select Book:</label>
+                    <select name="book_id" required>
+                        <option value="">Choose a book...</option>
+                        {% for book in books %}
+                        <option value="{{ book[0] }}">{{ book[1] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <button type="submit">Borrow Book</button>
+            </form>
+        </div>
+
+        <div class="reading-history">
+            <h2 id="student-name">Select a student</h2>
+            <div class="book-section">
+                <h3>Currently Borrowed Books</h3>
+                <div id="current-books">
+                    <p class="no-books">Select a student to see their borrowed books</p>
+                </div>
+            </div>
+
+            <div class="book-section">
+                <h2>Reading History</h2>
+                <div id="completed-books">
+                    <p class="no-books">Select a student to see their reading history</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
