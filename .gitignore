@@ -1,0 +1,26 @@
+# Database files
+library.db
+*.db
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Backup files
+backups/
+*_backup_*
+
+# Environment files
+.env
+venv/
+env/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/ 
