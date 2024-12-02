@@ -7,14 +7,19 @@ A simple Flask-based system for tracking book borrowing in a classroom setting. 
 - Track student book borrowing
 - View currently borrowed books
 - View reading history for each student
+- Export unreturned books list
+  - Excel format (.xlsx)
+  - CSV format (.csv)
+  - See [Export Documentation](docs/export_feature.md) for details
 - Simple web interface
 - Easy setup for new classrooms
 
 ## Setup Requirements
 
 - Python 3.x
-- Flask
-- SQLite3
+- Flask (for web application)
+- Pandas (for data export)
+- Openpyxl (for Excel export)
 
 ## Quick Start
 
@@ -124,7 +129,20 @@ Book Title 3
 - Student and book lists can be backed up as needed
 - Core application files are version-controlled through GitHub
 
-## Contributing
+## on a new machine
+
+# 1. Clone the repository
+git clone https://github.com/PeterNoelEvans/Book_Registration.git
+
+# 2. Create and activate virtual environment
+python -m venv venv
+venv\Scripts\activate
+
+# 3. Install requirements
+pip install -r requirements.txt
+
+# 4. Run setup
+python setup_check.py
 
 Feel free to submit issues and enhancement requests!
 
@@ -141,4 +159,75 @@ Feel free to submit issues and enhancement requests!
 - Flask web framework
 - SQLite database
 - [Any other acknowledgments]
+
+## Export Feature
+The system now supports exporting unreturned books lists. For detailed instructions, see the [Export Documentation](docs/export_feature.md).
+
+Quick start:
+
+```bash
+# Ensure required packages are installed
+pip install pandas openpyxl
+
+# Create export directory
+mkdir -p static/exports
+```
+
+### 1. Initial Setup
+```bash
+# Navigate to your project directory
+cd Book_Registration
+
+# Create virtual environment (if not already done)
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On Linux/Mac:
+source venv/bin/activate
+```
+
+### 2. Install Required Packages
+```bash
+# Install export-specific packages
+pip install pandas openpyxl
+
+# Update requirements.txt
+pip freeze > requirements.txt
+```
+
+### 3. Create Export Directory
+```bash
+# Create directory for exported files
+mkdir static
+mkdir static/exports
+```
+
+@app.route('/get_unreturned_books')
+def get_unreturned_books():
+    conn = sqlite3.connect('library.db')
+    c = conn.cursor()
+    
+    # Get all unreturned books with student names
+    c.execute('''
+        SELECT 
+            students.name,
+            students.nickname,
+            books.title,
+            borrowings.borrow_date,
+            borrowings.id,
+            students.id as student_id,
+            books.id as book_id
+        FROM borrowings 
+        JOIN students ON borrowings.student_id = students.id 
+        JOIN books ON borrowings.book_id = books.id 
+        WHERE borrowings.return_date IS NULL
+        ORDER BY students.name, borrowings.borrow_date
+    ''')
+    
+    unreturned = c.fetchall()
+    conn.close()
+    
+    return jsonify(unreturned)
 

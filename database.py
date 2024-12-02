@@ -21,8 +21,8 @@ def create_database():
                  (id INTEGER PRIMARY KEY,
                   student_id INTEGER,
                   book_id INTEGER,
-                  borrow_date DATE,
-                  return_date DATE,
+                  borrow_date DATETIME,
+                  return_date DATETIME,
                   FOREIGN KEY (student_id) REFERENCES students (id),
                   FOREIGN KEY (book_id) REFERENCES books (id))''')
     

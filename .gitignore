@@ -16,6 +16,7 @@ backups/
 .env
 venv/
 env/
+.venv/
 
 # System files
 .DS_Store
@@ -24,3 +25,10 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/ 
+# Virtual Environment
+
+__pycache__/
+*.pyc
+
+# Database
+library.db
