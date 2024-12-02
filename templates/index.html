@@ -96,17 +96,24 @@
         
         /* Add styles for delete button */
         .delete-btn {
+            font-size: 8px;
+            padding: 1px 2px;
             background-color: #dc3545;
             color: white;
             border: none;
-            border-radius: 3px;
-            padding: 5px 10px;
-            margin-left: 5px;
+            border-radius: 2px;
             cursor: pointer;
+            opacity: 0.6;
+            margin-left: 5px;
+            vertical-align: middle;
+            line-height: 1;
+            height: 12px;
+            width: auto;
+            display: inline-block;
         }
         
         .delete-btn:hover {
-            background-color: #c82333;
+            opacity: 1;
         }
         
         .header-buttons {
@@ -225,6 +232,62 @@
         .export-btn:hover {
             opacity: 0.9;
         }
+        
+        .modal-footer {
+            margin-top: 20px;
+            text-align: right;
+        }
+        
+        .close-btn {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .close-btn:hover {
+            background-color: #5a6268;
+        }
+        
+        .clear-btn {
+            background-color: #f44336;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .clear-btn:hover {
+            background-color: #d32f2f;
+        }
+        
+        #student-name {
+            font-weight: bold;
+            color: #2196F3;
+            margin-bottom: 10px;
+        }
+        
+        /* Make the return button more prominent in comparison */
+        .return-btn {
+            font-size: 14px;
+            padding: 4px 8px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+
+        .return-btn:hover {
+            background-color: #218838;
+        }
     </style>
     <script>
         function formatDateTime(dateTimeStr) {
@@ -232,30 +295,41 @@
             return dt.toLocaleString(); // This will show both date and time
         }
 
-        function deleteRecord(recordId, studentId) {
-            if (confirm('Are you sure you want to delete this record?')) {
-                fetch('/delete_record', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `record_id=${recordId}`
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        updateStudentHistory();
-                        location.reload(); // Refresh available books list
-                    } else {
-                        alert('Error deleting record: ' + data.error);
-                    }
-                });
+        function deleteRecord(recordId) {
+            fetch('/delete_record', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `record_id=${recordId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Refresh the student's history
+                    updateStudentHistory();
+                } else {
+                    alert(`Error deleting record: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the record.');
+            });
+        }
+
+        function storeSelectedStudent() {
+            const studentId = document.getElementById('student_id').value;
+            if (studentId) {
+                sessionStorage.setItem('selectedStudentId', studentId);
             }
         }
 
         function updateStudentHistory() {
             const studentId = document.getElementById('student_id').value;
             if (!studentId) return;
+            
+            storeSelectedStudent();
 
             fetch(`/get_student_history/${studentId}`)
                 .then(response => response.json())
@@ -283,7 +357,7 @@
                                                 <button class="return-btn" onclick="returnBook(${studentId}, ${book[0]})">
                                                     Return Book
                                                 </button>
-                                                <button class="delete-btn" onclick="deleteRecord(${book[3]}, ${studentId})">
+                                                <button class="delete-btn" onclick="deleteRecord(${book[3]})">
                                                     Delete
                                                 </button>
                                             </td>
@@ -314,7 +388,7 @@
                                             <td>${formatDateTime(book[2])}</td>
                                             <td>${formatDateTime(book[3])}</td>
                                             <td>
-                                                <button class="delete-btn" onclick="deleteRecord(${book[4]}, ${studentId})">
+                                                <button class="delete-btn" onclick="deleteRecord(${book[0]})">
                                                     Delete
                                                 </button>
                                             </td>
@@ -328,21 +402,57 @@
                 });
         }
 
-        function returnBook(studentId, bookId) {
-            fetch('/return_book', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `student_id=${studentId}&book_id=${bookId}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateStudentHistory();
-                    location.reload(); // Refresh to update available books list
-                }
-            });
+        function returnBook(borrowingId, studentId) {
+            fetch(`/return_book/${borrowingId}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Get the current student ID
+                        const currentStudentId = document.getElementById('student_id').value;
+                        
+                        // Refresh the student's history
+                        fetch(`/get_student_history/${currentStudentId}`)
+                            .then(response => response.json())
+                            .then(historyData => {
+                                // Update currently borrowed books
+                                const currentBooks = document.getElementById('current-books');
+                                if (historyData.borrowed.length === 0) {
+                                    currentBooks.innerHTML = '<p class="no-books">No books currently borrowed</p>';
+                                } else {
+                                    currentBooks.innerHTML = `
+                                        <ul>
+                                            ${historyData.borrowed.map(book => `
+                                                <li>
+                                                    ${book[1]}
+                                                    <button onclick="returnBook(${book[0]}, ${currentStudentId})">Return</button>
+                                                </li>
+                                            `).join('')}
+                                        </ul>
+                                    `;
+                                }
+                                
+                                // Update reading history
+                                const completedBooks = document.getElementById('completed-books');
+                                if (historyData.returned.length === 0) {
+                                    completedBooks.innerHTML = '<p class="no-books">No reading history</p>';
+                                } else {
+                                    completedBooks.innerHTML = `
+                                        <ul>
+                                            ${historyData.returned.map(book => `
+                                                <li>${book[1]} (Returned: ${formatDateTime(book[3])})</li>
+                                            `).join('')}
+                                        </ul>
+                                    `;
+                                }
+                            });
+                    } else {
+                        alert('Failed to return the book. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while returning the book.');
+                });
         }
 
         function showUnreturnedBooks() {
@@ -375,7 +485,7 @@
                                                 <button class="return-btn" onclick="returnBook(${book[5]}, ${book[6]})">
                                                     Return
                                                 </button>
-                                                <button class="delete-btn" onclick="deleteRecord(${book[4]}, ${book[5]})">
+                                                <button class="delete-btn" onclick="deleteRecord(${book[4]})">
                                                     Delete
                                                 </button>
                                             </td>
@@ -406,6 +516,39 @@
         function exportUnreturned(format) {
             window.location.href = `/export_unreturned?format=${format}`;
         }
+        
+        function closeUnreturnedModal() {
+            document.getElementById('unreturned-modal').style.display = "none";
+        }
+
+        // Restore the selected student when the page loads
+        function restoreSelectedStudent() {
+            const storedStudentId = sessionStorage.getItem('selectedStudentId');
+            if (storedStudentId) {
+                const studentSelect = document.getElementById('student_id');
+                studentSelect.value = storedStudentId;
+                updateStudentHistory();
+                // Add visual feedback
+                document.getElementById('student-name').textContent = `Selected Student: ${studentSelect.options[studentSelect.selectedIndex].text}`;
+            }
+        }
+
+        // Clear the selected student
+        function clearSelectedStudent() {
+            sessionStorage.removeItem('selectedStudentId');
+            document.getElementById('student_id').value = '';
+            document.getElementById('student-name').textContent = 'Select a student';
+            document.getElementById('current-books').innerHTML = '<p class="no-books">Select a student to see their borrowed books</p>';
+            document.getElementById('completed-books').innerHTML = '<p class="no-books">Select a student to see their reading history</p>';
+        }
+
+        // Call restoreSelectedStudent when the page loads
+        document.addEventListener('DOMContentLoaded', restoreSelectedStudent);
+
+        // Update your form to store the student before submitting
+        document.querySelector('form').addEventListener('submit', function(e) {
+            storeSelectedStudent();
+        });
     </script>
 </head>
 <body>
@@ -458,23 +601,27 @@
 
     <div class="header-buttons">
         <button onclick="showUnreturnedBooks()" class="unreturned-btn">Show Unreturned Books</button>
+        <button onclick="clearSelectedStudent()" class="clear-btn">Clear Selection</button>
     </div>
 
     <div id="unreturned-modal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
             <div class="modal-header">
                 <h2>Unreturned Books</h2>
-                <div class="export-buttons">
-                    <button onclick="exportUnreturned('excel')" class="export-btn excel">
-                        Export to Excel
-                    </button>
-                    <button onclick="exportUnreturned('csv')" class="export-btn csv">
-                        Export to CSV
-                    </button>
-                </div>
+                <span class="close">&times;</span>
+            </div>
+            <div class="export-buttons">
+                <button onclick="exportUnreturned('excel')" class="export-btn excel">
+                    Export to Excel
+                </button>
+                <button onclick="exportUnreturned('csv')" class="export-btn csv">
+                    Export to CSV
+                </button>
             </div>
             <div id="unreturned-list"></div>
+            <div class="modal-footer">
+                <button onclick="closeUnreturnedModal()" class="close-btn">Close</button>
+            </div>
         </div>
     </div>
 </body>

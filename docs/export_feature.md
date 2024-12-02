@@ -1,17 +1,4 @@
-# Book Registration Export Feature
-
-## Table of Contents
-- [Overview](#overview)
-- [Environment Setup](#environment-setup)
-- [Code Implementation](#code-implementation)
-  - [Python Routes](#python-routes)
-  - [HTML/JavaScript Changes](#htmljavascript-changes)
-  - [Styling](#styling)
-- [Usage](#usage)
-- [File Locations](#file-locations)
-- [Troubleshooting](#troubleshooting)
-- [Maintenance](#maintenance)
-- [Security Notes](#security-notes)
+# Export Feature Documentation
 
 ## Overview
 The export feature allows you to generate spreadsheet files of unreturned books, useful for:
@@ -55,13 +42,14 @@ mkdir -p static/exports
 ## Code Implementation
 
 ### Python Routes
-Add this to your `app.py`:
+Add these routes to your `app.py`:
 
 ```python
-from flask import send_file, jsonify
+from flask import send_file, jsonify, request
 import pandas as pd
 from datetime import datetime
 import os
+import sqlite3
 
 # Create export directory if it doesn't exist
 export_dir = os.path.join('static', 'exports')
@@ -69,73 +57,109 @@ os.makedirs(export_dir, exist_ok=True)
 
 @app.route('/export_unreturned', methods=['GET'])
 def export_unreturned():
-    conn = sqlite3.connect('library.db')
-    c = conn.cursor()
-    
-    # Get unreturned books data
-    c.execute('''
-        SELECT 
-            students.name,
-            students.nickname,
-            books.title,
-            borrowings.borrow_date
-        FROM borrowings 
-        JOIN students ON borrowings.student_id = students.id 
-        JOIN books ON borrowings.book_id = books.id 
-        WHERE borrowings.return_date IS NULL
-        ORDER BY students.name, borrowings.borrow_date
-    ''')
-    
-    unreturned = c.fetchall()
-    conn.close()
-    
-    # Create DataFrame
-    df = pd.DataFrame(unreturned, columns=['Student Name', 'Nickname', 'Book Title', 'Borrow Date'])
-    
-    # Generate filename with current date
-    filename = f'unreturned_books_{datetime.now().strftime("%Y%m%d_%H%M")}'
-    
-    # Get export format from query parameter
-    format = request.args.get('format', 'excel')
-    
-    if format == 'excel':
-        # Export to Excel
-        excel_file = f"static/exports/{filename}.xlsx"
-        df.to_excel(excel_file, index=False)
-        return send_file(excel_file, as_attachment=True)
+    try:
+        conn = sqlite3.connect('library.db')
+        c = conn.cursor()
         
-    elif format == 'csv':
-        # Export to CSV
-        csv_file = f"static/exports/{filename}.csv"
-        df.to_csv(csv_file, index=False)
-        return send_file(csv_file, as_attachment=True)
+        # Get unreturned books data
+        c.execute('''
+            SELECT 
+                students.name,
+                students.nickname,
+                books.title,
+                borrowings.borrow_date
+            FROM borrowings 
+            JOIN students ON borrowings.student_id = students.id 
+            JOIN books ON borrowings.book_id = books.id 
+            WHERE borrowings.return_date IS NULL
+            ORDER BY students.name, borrowings.borrow_date
+        ''')
+        
+        unreturned = c.fetchall()
+        
+        if not unreturned:
+            return jsonify({'error': 'No unreturned books found'}), 404
+            
+        # Create DataFrame for export
+        df = pd.DataFrame(unreturned, columns=['Student Name', 'Nickname', 'Book Title', 'Borrow Date'])
+        
+        # Generate unique filename with timestamp
+        filename = f'unreturned_books_{datetime.now().strftime("%Y%m%d_%H%M")}'
+        
+        # Get requested format (default to excel)
+        format = request.args.get('format', 'excel')
+        
+        if format == 'excel':
+            excel_file = f"static/exports/{filename}.xlsx"
+            df.to_excel(excel_file, index=False)
+            return send_file(excel_file, as_attachment=True)
+            
+        elif format == 'csv':
+            csv_file = f"static/exports/{filename}.csv"
+            df.to_csv(csv_file, index=False)
+            return send_file(csv_file, as_attachment=True)
+        else:
+            return jsonify({'error': 'Invalid format requested'}), 400
+            
+    except sqlite3.Error as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Export failed: {str(e)}'}), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 @app.route('/get_unreturned_books')
 def get_unreturned_books():
-    conn = sqlite3.connect('library.db')
-    c = conn.cursor()
+    """
+    Retrieves all unreturned books with associated student information.
     
-    # Get all unreturned books with student names
-    c.execute('''
-        SELECT 
-            students.name,
-            students.nickname,
-            books.title,
-            borrowings.borrow_date,
-            borrowings.id,
-            students.id as student_id,
-            books.id as book_id
-        FROM borrowings 
-        JOIN students ON borrowings.student_id = students.id 
-        JOIN books ON borrowings.book_id = books.id 
-        WHERE borrowings.return_date IS NULL
-        ORDER BY students.name, borrowings.borrow_date
-    ''')
-    
-    unreturned = c.fetchall()
-    conn.close()
-    
-    return jsonify(unreturned)
+    Returns:
+        JSON array of unreturned books with:
+        - Student name and nickname
+        - Book title
+        - Borrow date
+        - Record IDs for database operations
+        
+    Error Codes:
+        500: Database error
+        404: No unreturned books found
+    """
+    try:
+        conn = sqlite3.connect('library.db')
+        c = conn.cursor()
+        
+        # Get all unreturned books with student names and necessary IDs
+        c.execute('''
+            SELECT 
+                students.name,          -- [0] Student's full name
+                students.nickname,      -- [1] Student's nickname
+                books.title,           -- [2] Book title
+                borrowings.borrow_date, -- [3] Date borrowed
+                borrowings.id,         -- [4] Borrowing record ID (for deletion)
+                students.id,           -- [5] Student ID (for return/delete operations)
+                books.id               -- [6] Book ID (for return operation)
+            FROM borrowings 
+            JOIN students ON borrowings.student_id = students.id 
+            JOIN books ON borrowings.book_id = books.id 
+            WHERE borrowings.return_date IS NULL
+            ORDER BY students.name, borrowings.borrow_date
+        ''')
+        
+        unreturned = c.fetchall()
+        
+        if not unreturned:
+            return jsonify({'message': 'No unreturned books found', 'data': []}), 404
+            
+        return jsonify(unreturned)
+        
+    except sqlite3.Error as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
 ```
 
 ### HTML/JavaScript Changes
@@ -349,21 +373,6 @@ Add these styles to your `templates/index.html`:
    - Click "Export to Excel" for .xlsx file
    - Click "Export to CSV" for .csv file
 4. Files will be downloaded to your default download location
-
-## File Locations
-```
-Book_Registration/
-│
-├── static/
-│   └── exports/           # Export files directory
-│       ├── unreturned_books_20240120_1430.xlsx
-│       └── unreturned_books_20240120_1430.csv
-│
-├── templates/
-│   └── index.html         # Contains export buttons
-│
-└── app.py                 # Export route handlers
-```
 
 ## Troubleshooting
 

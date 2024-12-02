@@ -30,40 +30,31 @@ def get_student_history(student_id):
     conn = sqlite3.connect('library.db')
     c = conn.cursor()
     
-    # Get currently borrowed books
+    # Get currently borrowed books (where return_date is NULL)
     c.execute('''
-        SELECT 
-            books.id,
-            books.title, 
-            borrowings.borrow_date,
-            'borrowed' as status
+        SELECT borrowings.id, books.title, borrowings.borrow_date
         FROM borrowings 
-        JOIN books ON borrowings.book_id = books.id 
-        WHERE borrowings.student_id = ? 
-        AND borrowings.return_date IS NULL
+        JOIN books ON borrowings.book_id = books.id
+        WHERE borrowings.student_id = ? AND borrowings.return_date IS NULL
+        ORDER BY borrowings.borrow_date DESC
     ''', (student_id,))
-    borrowed_books = c.fetchall()
+    borrowed = c.fetchall()
     
-    # Get returned books
+    # Get returned books (where return_date is NOT NULL)
     c.execute('''
-        SELECT 
-            books.id,
-            books.title, 
-            borrowings.borrow_date,
-            borrowings.return_date,
-            'returned' as status
+        SELECT borrowings.id, books.title, borrowings.borrow_date, borrowings.return_date
         FROM borrowings 
-        JOIN books ON borrowings.book_id = books.id 
-        WHERE borrowings.student_id = ? 
-        AND borrowings.return_date IS NOT NULL
+        JOIN books ON borrowings.book_id = books.id
+        WHERE borrowings.student_id = ? AND borrowings.return_date IS NOT NULL
+        ORDER BY borrowings.return_date DESC
     ''', (student_id,))
-    returned_books = c.fetchall()
+    returned = c.fetchall()
     
     conn.close()
     
     return jsonify({
-        'borrowed': borrowed_books,
-        'returned': returned_books
+        'borrowed': borrowed,
+        'returned': returned
     })
 
 @app.route('/borrow_book', methods=['POST'])
@@ -90,58 +81,52 @@ def borrow_book():
     conn.close()
     return redirect(url_for('index'))
 
-@app.route('/return_book', methods=['POST'])
-def return_book():
-    student_id = request.form['student_id']
-    book_id = request.form['book_id']
-    
-    conn = sqlite3.connect('library.db')
-    c = conn.cursor()
-    
-    # Update with timestamp
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    # Update book availability
-    c.execute('UPDATE books SET available = 1 WHERE id = ?', (book_id,))
-    
-    # Update borrowing record with return timestamp
-    c.execute('''
-        UPDATE borrowings 
-        SET return_date = ? 
-        WHERE student_id = ? 
-        AND book_id = ? 
-        AND return_date IS NULL
-    ''', (current_time, student_id, book_id))
-    
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+@app.route('/return_book/<int:borrowing_id>', methods=['POST'])
+def return_book(borrowing_id):
+    try:
+        conn = sqlite3.connect('library.db')
+        c = conn.cursor()
+        
+        # Update the return date for the book
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        c.execute('''
+            UPDATE borrowings 
+            SET return_date = ? 
+            WHERE id = ?
+        ''', (current_time, borrowing_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/delete_record', methods=['POST'])
 def delete_record():
-    record_id = request.form['record_id']
-    
-    conn = sqlite3.connect('library.db')
-    c = conn.cursor()
-    
     try:
-        # Get book_id before deleting the record
-        c.execute('SELECT book_id FROM borrowings WHERE id = ?', (record_id,))
-        book_id = c.fetchone()[0]
+        record_id = request.form.get('record_id')
+        if not record_id:
+            return jsonify({'success': False, 'error': 'No record ID provided'})
+            
+        conn = sqlite3.connect('library.db')
+        c = conn.cursor()
         
-        # Delete the borrowing record
+        # First check if the record exists
+        c.execute('SELECT id FROM borrowings WHERE id = ?', (record_id,))
+        if not c.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Record not found'})
+        
+        # Delete the record
         c.execute('DELETE FROM borrowings WHERE id = ?', (record_id,))
-        
-        # Reset book availability to 1 (available)
-        c.execute('UPDATE books SET available = 1 WHERE id = ?', (book_id,))
-        
         conn.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
         conn.close()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/get_unreturned_books')
 def get_unreturned_books():
