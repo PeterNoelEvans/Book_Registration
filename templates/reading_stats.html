@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reading Statistics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background-color: rgb(188, 243, 245);
+        }
+        
+        .stats-table th, .stats-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .stats-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .chart-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            margin-top: 40px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .back-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        
+        .back-btn:hover {
+            background-color: #45a049;
+        }
+        
+        tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Reading Statistics</h1>
+            <a href="{{ url_for('index') }}" class="back-btn">Back to Borrowing</a>
+        </div>
+        
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Student Name</th>
+                    <th>Nickname</th>
+                    <th>Books Read</th>
+                    <th>Currently Borrowed</th>
+                    <th>Total Books</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in stats %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ stat[0] }}</td>
+                    <td>{{ stat[1] }}</td>
+                    <td>{{ stat[2] }}</td>
+                    <td>{{ stat[3] }}</td>
+                    <td>{{ stat[2] + stat[3] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div class="chart-container">
+            <canvas id="readingChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Prepare data for the chart
+        const students = {{ stats|tojson|safe }};
+        const labels = students.map(s => s[1] || s[0]); // Use nickname if available, otherwise full name
+        const booksRead = students.map(s => s[2]);
+        const booksBorrowed = students.map(s => s[3]);
+
+        // Create the chart
+        const ctx = document.getElementById('readingChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Books Read',
+                    data: booksRead,
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Currently Borrowed',
+                    data: booksBorrowed,
+                    backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Books Read by Student'
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

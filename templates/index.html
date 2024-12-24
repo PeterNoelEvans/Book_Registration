@@ -11,11 +11,11 @@
             margin: 0 auto;
         }
         .borrow-form {
-            flex: 1;
+            flex: 0.5;
             margin-right: 20px;
         }
         .reading-history {
-            flex: 1;
+            flex: 1.5;
             padding: 20px;
             background-color: #f5f5f5;
             border-radius: 5px;
@@ -31,7 +31,7 @@
             border: 1px solid #ddd;
         }
         .currently-reading {
-            border-left: 4px solid #4CAF50;
+            border-left: 4px solid #37b33b;
         }
         .completed {
             border-left: 4px solid #2196F3;
@@ -49,7 +49,7 @@
             cursor: pointer;
         }
         button:hover {
-            background-color: #45a049;
+            background-color: #62e468;
         }
         .return-btn {
             background-color: #2196F3;
@@ -63,7 +63,7 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
-            background-color: white;
+            background-color: rgb(188, 243, 245);
         }
         
         th, td {
@@ -123,7 +123,7 @@
         
         .unreturned-btn {
             background-color: #ff9800;
-            color: white;
+            color: rgb(20, 19, 19);
             padding: 10px 20px;
             border: none;
             border-radius: 4px;
@@ -288,11 +288,111 @@
         .return-btn:hover {
             background-color: #218838;
         }
+        
+        .reborrow-btn {
+            font-size: 12px;
+            padding: 2px 4px;
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 5px;
+            vertical-align: middle;
+            width: auto;
+        }
+        
+        .reborrow-btn:hover {
+            background-color: #29e739;
+        }
+        
+        /* Adjust the container max-width to make it wider */
+        .container {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            max-width: 1400px;  /* Increase this value, e.g., to 1400px or 1600px */
+            margin: 0 auto;
+        }
+
+        /* Adjust the reading history section width */
+        .reading-history {
+            flex: 1.5;  /* Increase this value to make it wider relative to the borrow form */
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        /* Adjust the borrow form width */
+        .borrow-form {
+            flex: 0.5;  /* Decrease this value to make it narrower */
+            margin-right: 20px;
+        }
+
+        /* Adjust table cell padding */
+        th, td {
+            padding: 12px;  /* Increase/decrease this value to adjust cell spacing */
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Adjust specific column widths if needed */
+        .book-table th:nth-child(1) { /* # column */
+            width: 5%;
+        }
+        .book-table th:nth-child(2) { /* Book Title column */
+            width: 25%;
+        }
+        .book-table th:nth-child(3) { /* Borrowed Date columns */
+            width: 25%;
+        }
+        .book-table th:nth-child(4) { /* Returned Date columns */
+            width: 25%;
+        }
+        .book-table th:nth-child(5) { /* Actions column */
+            width: 20%;
+        }
+
+        .stats-btn {
+            background-color: #17a2b8;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .stats-btn:hover {
+            background-color: #138496;
+        }
+
+        .review-btn {
+            background-color: #6f42c1;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .review-btn:hover {
+            background-color: #5a32a3;
+        }
     </style>
     <script>
         function formatDateTime(dateTimeStr) {
             const dt = new Date(dateTimeStr);
-            return dt.toLocaleString(); // This will show both date and time
+            const options = {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false // Use 24-hour format
+            };
+            return dt.toLocaleString('en-GB', options).replace(',', ''); // Use British format (DD/MM/YYYY) and remove comma
         }
 
         function deleteRecord(recordId) {
@@ -314,7 +414,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred while deleting the record.');
+                alert('An error occurred while deleting the record. You better go and ask Peter');
             });
         }
 
@@ -343,18 +443,20 @@
                             <table class="book-table">
                                 <thead>
                                     <tr>
+                                        <th>#</th>
                                         <th>Book Title</th>
                                         <th>Borrowed Date/Time</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${data.borrowed.map(book => `
+                                    ${data.borrowed.map((book, index) => `
                                         <tr>
+                                            <td>${index + 1}</td>
                                             <td>${book[1]}</td>
                                             <td>${formatDateTime(book[2])}</td>
                                             <td>
-                                                <button class="return-btn" onclick="returnBook(${studentId}, ${book[0]})">
+                                                <button class="return-btn" onclick="returnBook(${book[3]}, ${studentId})">
                                                     Return Book
                                                 </button>
                                                 <button class="delete-btn" onclick="deleteRecord(${book[3]})">
@@ -375,21 +477,26 @@
                             <table class="book-table">
                                 <thead>
                                     <tr>
+                                        <th>#</th>
                                         <th>Book Title</th>
                                         <th>Borrowed Date/Time</th>
                                         <th>Returned Date/Time</th>
-                                        <th>Action</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${data.returned.map(book => `
+                                    ${data.returned.map((book, index) => `
                                         <tr>
+                                            <td>${index + 1}</td>
                                             <td>${book[1]}</td>
                                             <td>${formatDateTime(book[2])}</td>
                                             <td>${formatDateTime(book[3])}</td>
                                             <td>
                                                 <button class="delete-btn" onclick="deleteRecord(${book[0]})">
                                                     Delete
+                                                </button>
+                                                <button class="reborrow-btn" onclick="makeReBorrowable(${book[0]})">
+                                                    Allow Re-borrow
                                                 </button>
                                             </td>
                                         </tr>
@@ -403,56 +510,35 @@
         }
 
         function returnBook(borrowingId, studentId) {
-            fetch(`/return_book/${borrowingId}`, { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Get the current student ID
-                        const currentStudentId = document.getElementById('student_id').value;
-                        
-                        // Refresh the student's history
-                        fetch(`/get_student_history/${currentStudentId}`)
-                            .then(response => response.json())
-                            .then(historyData => {
-                                // Update currently borrowed books
-                                const currentBooks = document.getElementById('current-books');
-                                if (historyData.borrowed.length === 0) {
-                                    currentBooks.innerHTML = '<p class="no-books">No books currently borrowed</p>';
-                                } else {
-                                    currentBooks.innerHTML = `
-                                        <ul>
-                                            ${historyData.borrowed.map(book => `
-                                                <li>
-                                                    ${book[1]}
-                                                    <button onclick="returnBook(${book[0]}, ${currentStudentId})">Return</button>
-                                                </li>
-                                            `).join('')}
-                                        </ul>
-                                    `;
-                                }
-                                
-                                // Update reading history
-                                const completedBooks = document.getElementById('completed-books');
-                                if (historyData.returned.length === 0) {
-                                    completedBooks.innerHTML = '<p class="no-books">No reading history</p>';
-                                } else {
-                                    completedBooks.innerHTML = `
-                                        <ul>
-                                            ${historyData.returned.map(book => `
-                                                <li>${book[1]} (Returned: ${formatDateTime(book[3])})</li>
-                                            `).join('')}
-                                        </ul>
-                                    `;
-                                }
-                            });
-                    } else {
-                        alert('Failed to return the book. Please try again.');
+            if (!confirm('Are you sure you want to return this book?')) {
+                return;
+            }
+
+            console.log('Attempting to return book with borrowingId:', borrowingId);
+
+            fetch(`/return_book/${borrowingId}`, { 
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update both lists
+                    updateStudentHistory();
+                    updateAvailableBooks();
+                    
+                    // If the unreturned modal is open, refresh its content
+                    const modal = document.getElementById('unreturned-modal');
+                    if (modal.style.display === "block") {
+                        showUnreturnedBooks();
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while returning the book.');
-                });
+                } else {
+                    alert('Failed to return the book: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while returning the book: ' + error.message);
+            });
         }
 
         function showUnreturnedBooks() {
@@ -482,7 +568,7 @@
                                             <td>${book[2]}</td>
                                             <td>${formatDateTime(book[3])}</td>
                                             <td>
-                                                <button class="return-btn" onclick="returnBook(${book[5]}, ${book[6]})">
+                                                <button class="return-btn" onclick="returnBook(${book[4]}, ${book[5]})">
                                                     Return
                                                 </button>
                                                 <button class="delete-btn" onclick="deleteRecord(${book[4]})">
@@ -497,6 +583,10 @@
                     }
                     
                     modal.style.display = "block";
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading unreturned books');
                 });
         }
         
@@ -549,6 +639,117 @@
         document.querySelector('form').addEventListener('submit', function(e) {
             storeSelectedStudent();
         });
+
+        function handleBorrowSubmit(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const studentId = formData.get('student_id');
+            const bookSelect = document.querySelector('select[name="book_id"]');
+            const bookTitle = bookSelect.options[bookSelect.selectedIndex].text;
+            
+            fetch('{{ url_for("borrow_book") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show confirmation message
+                    const confirmationDiv = document.getElementById('borrow-confirmation');
+                    confirmationDiv.textContent = `Successfully borrowed: ${bookTitle}`;
+                    confirmationDiv.style.display = 'block';
+                    
+                    // Clear book selection
+                    bookSelect.value = '';
+                    
+                    // Update both lists
+                    updateStudentHistory();
+                    updateAvailableBooks();
+                    
+                    // Hide confirmation message after 3 seconds
+                    setTimeout(() => {
+                        confirmationDiv.style.display = 'none';
+                    }, 3000);
+                } else {
+                    alert(data.error || 'Failed to borrow book');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while borrowing the book');
+            });
+        }
+
+        // Add new function to handle making a book re-borrowable
+        function makeReBorrowable(borrowingId) {
+            fetch('/make_reborrowable/' + borrowingId, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Book can now be borrowed again');
+                    updateStudentHistory();
+                    updateAvailableBooks();
+                } else {
+                    alert('Failed to update book status: ' + (data.error || 'Unknown error'));
+                }
+            });
+        }
+
+        // Add function to update available books when student is selected
+        function updateAvailableBooks() {
+            const studentId = document.getElementById('student_id').value;
+            if (!studentId) return;
+
+            fetch(`/get_available_books/${studentId}`)
+                .then(response => response.json())
+                .then(books => {
+                    const bookSelect = document.querySelector('select[name="book_id"]');
+                    bookSelect.innerHTML = '<option value="">Choose a book...</option>' +
+                        books.map(book => `<option value="${book[0]}">${book[1]}</option>`).join('');
+                });
+        }
+
+        // Update the student selection handler
+        document.getElementById('student_id').addEventListener('change', function() {
+            updateStudentHistory();
+            updateAvailableBooks();
+        });
+
+        function studentChanged() {
+            updateStudentHistory();
+            updateAvailableBooks();
+        }
+
+        function updateAvailableBooks() {
+            const studentId = document.getElementById('student_id').value;
+            if (!studentId) {
+                const bookSelect = document.getElementById('book_id');
+                bookSelect.innerHTML = '<option value="">Choose a book...</option>';
+                return;
+            }
+
+            fetch(`/get_available_books/${studentId}`)
+                .then(response => response.json())
+                .then(books => {
+                    const bookSelect = document.getElementById('book_id');
+                    bookSelect.innerHTML = '<option value="">Choose a book...</option>' +
+                        books.map(book => `<option value="${book[0]}">${book[1]}</option>`).join('');
+                })
+                .catch(error => {
+                    console.error('Error updating available books:', error);
+                });
+        }
+
+        // Call updateAvailableBooks after successful borrow/return operations
+        document.addEventListener('DOMContentLoaded', function() {
+            const studentSelect = document.getElementById('student_id');
+            if (studentSelect.value) {
+                updateAvailableBooks();
+            }
+        });
     </script>
 </head>
 <body>
@@ -556,10 +757,10 @@
     
     <div class="container">
         <div class="borrow-form">
-            <form action="{{ url_for('borrow_book') }}" method="post">
+            <form action="{{ url_for('borrow_book') }}" method="post" id="borrow-form" onsubmit="handleBorrowSubmit(event)">
                 <div>
                     <label for="student_id">Select Student:</label>
-                    <select name="student_id" id="student_id" required onchange="updateStudentHistory()">
+                    <select name="student_id" id="student_id" required onchange="studentChanged()">
                         <option value="">Choose a student...</option>
                         {% for student in students %}
                         <option value="{{ student[0] }}">{{ student[1] }} ({{ student[2] }})</option>
@@ -569,12 +770,12 @@
                 
                 <div>
                     <label for="book_id">Select Book:</label>
-                    <select name="book_id" required>
+                    <select name="book_id" id="book_id" required>
                         <option value="">Choose a book...</option>
-                        {% for book in books %}
-                        <option value="{{ book[0] }}">{{ book[1] }}</option>
-                        {% endfor %}
                     </select>
+                </div>
+                
+                <div id="borrow-confirmation" style="display: none; margin-top: 10px; padding: 10px; background-color: #dff0d8; border-radius: 4px; color: #3c763d;">
                 </div>
                 
                 <button type="submit">Borrow Book</button>
@@ -602,6 +803,8 @@
     <div class="header-buttons">
         <button onclick="showUnreturnedBooks()" class="unreturned-btn">Show Unreturned Books</button>
         <button onclick="clearSelectedStudent()" class="clear-btn">Clear Selection</button>
+        <button onclick="window.location.href='{{ url_for('reading_stats') }}'" class="stats-btn">View Reading Stats</button>
+        <button onclick="window.location.href='{{ url_for('review_management') }}'" class="review-btn">Manage Reviews</button>
     </div>
 
     <div id="unreturned-modal" class="modal">

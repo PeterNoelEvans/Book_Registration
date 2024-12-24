@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Review Management</title>
+    <style>
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .reviews-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background-color: rgb(188, 243, 245);
+        }
+        
+        .reviews-table th, .reviews-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .reviews-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .back-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        
+        .confirm-btn {
+            padding: 8px 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .confirm-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .confirmed {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Review Management</h1>
+            <a href="{{ url_for('index') }}" class="back-btn">Back to Borrowing</a>
+        </div>
+        
+        <table class="reviews-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Student Name</th>
+                    <th>Book Title</th>
+                    <th>Borrowed Date</th>
+                    <th>Returned Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review in reviews %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ review[1] }} ({{ review[2] }})</td>
+                    <td>{{ review[3] }}</td>
+                    <td>{{ review[4] }}</td>
+                    <td>{{ review[5] }}</td>
+                    <td>{{ 'Confirmed' if review[6] else 'Pending' }}</td>
+                    <td>
+                        <button 
+                            class="confirm-btn" 
+                            onclick="confirmReview({{ review[0] }}, this)"
+                            {% if review[6] %}disabled{% endif %}
+                        >
+                            {{ 'Confirmed' if review[6] else 'Confirm Review' }}
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function confirmReview(borrowingId, button) {
+            if (!confirm('Confirm that the book review has been completed?')) {
+                return;
+            }
+
+            fetch(`/confirm_review/${borrowingId}`, { 
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    button.disabled = true;
+                    button.textContent = 'Confirmed';
+                    button.parentElement.previousElementSibling.textContent = 'Confirmed';
+                } else {
+                    alert('Failed to confirm review: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while confirming the review');
+            });
+        }
+    </script>
+</body>
+</html> 
