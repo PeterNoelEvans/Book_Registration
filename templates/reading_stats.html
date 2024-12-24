@@ -98,7 +98,8 @@
 
     <script>
         // Prepare data for the chart
-        const students = {{ stats|tojson|safe }};
+        const students = JSON.parse('{{ stats|tojson|escapejs }}');
+        console.log(students); // Debugging line
         const labels = students.map(s => s[1] || s[0]); // Use nickname if available, otherwise full name
         const booksRead = students.map(s => s[2]);
         const booksBorrowed = students.map(s => s[3]);
